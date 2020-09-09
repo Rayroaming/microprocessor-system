@@ -3,57 +3,90 @@
 #include<stdint.h>
 #include "init.h"
 
-// push-pull 1 
+// push-pull 1
 // open-drain 0
-GPIO_InitTypeDef GPIO_InitStructure;
 int main(void)
 {
+	//OUTPUT
+	__HAL_RCC_GPIOJ_CLK_ENABLE();// enable clock J, LD1&LD2
+	GPIO_InitTypeDef PJ;
+	PJ.Pin = GPIO_PIN_13 | GPIO_PIN_5;
+	PJ.Mode = GPIO_MODE_OUTPUT_PP;
+	PJ.Pull = GPIO_PULLUP;
+	PJ.Speed = GPIO_SPEED_LOW;
+	HAL_GPIO_Init(GPIOJ, &PJ);
+
+	__HAL_RCC_GPIOA_CLK_ENABLE();//enable CLK A, LD3
+	GPIO_InitTypeDef PA;
+	PA.Pin = GPIO_PIN_12;
+	PA.Mode = GPIO_MODE_OUTPUT_PP;
+	PA.Pull = GPIO_PULLUP;
+	PA.Speed = GPIO_SPEED_LOW;
+	HAL_GPIO_Init(GPIOA, &PA);
+
+	__HAL_RCC_GPIOD_CLK_ENABLE();//enable CLK D, LD4
+	GPIO_InitTypeDef PD;
+	PD.Pin = GPIO_PIN_4;
+	PD.Mode = GPIO_MODE_OUTPUT_PP;
+	PD.Pull = GPIO_PULLUP;
+	PD.Speed = GPIO_SPEED_LOW;
+	HAL_GPIO_Init(GPIOD, &PD);
+		//GPIOJ->MODER |= 1024U;
+
+	//INPUT
+	__HAL_RCC_GPIOC_CLK_ENABLE();//enable CLK C, D0&D1
+	GPIO_InitTypeDef PC;
+	PC.Pin = GPIO_PIN_6 | GPIO_PIN_7;//Arduino D1&D0 input
+	PC.Mode = GPIO_MODE_INPUT;
+	PC.Pull = GPIO_PULLUP;
+	PC.Speed = GPIO_SPEED_LOW;
+	HAL_GPIO_Init(GPIOC, &PC);
+
+	__HAL_RCC_GPIOF_CLK_ENABLE();//enable CLK F, D3
+	GPIO_InitTypeDef PF;
+	PJ.Pin = GPIO_PIN_6;//Arduino D3 input
+	PJ.Mode = GPIO_MODE_INPUT;
+	PJ.Pull = GPIO_PULLUP;
+	PJ.Speed = GPIO_SPEED_LOW;
+	HAL_GPIO_Init(GPIOF, &PF);
+
+	//CLK already enabled
+	//D2 INPUT
+	GPIO_InitTypeDef PJ2;
+	PJ2.Pin = GPIO_PIN_1;
+	PJ2.Mode = GPIO_MODE_INPUT;
+	PJ2.Pull = GPIO_PULLUP;
+	PJ2.Speed = GPIO_SPEED_LOW;
+	HAL_GPIO_Init(GPIOJ, &PJ2);
+
+
+	//HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_13, GPIO_PIN_RESET);//LIGHT UP LD1
+	//HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_RESET);//LIGHT UP LD2
+	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);//LIGHT UP LD2
+	//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET);//LIGHT UP LD2
+	//HAL_Delay(1000);
 	while(1)
 	{
-		__HAL_RCC_GPIOJ_CLK_ENABLE();// enable clock J, LD1&LD2&D2
-		GPIO_InitStructure.Pin = GPIO_PIN_13;//LD1
-		GPIO_InitStructure.Pin = GPIO_PIN_5;//LD2
-		GPIO_InitStructure.Pin = GPIO_PIN_1;//Arduino D2 input 
-		GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
-		GPIO_InitStructure.Pull = GPIO_PULLUP; 
-		GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
-		HAL_GPIO_Init(GPIOJ, &GPIO_InitStructure);
-		
-		__HAL_RCC_GPIOA_CLK_ENABLE();//enable CLK A, LD3
-		GPIO_InitStructure.Pin = GPIO_PIN_12;
-		GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
-		GPIO_InitStructure.Pull = GPIO_PULLUP; 
-		GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
-		HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
-		
-		__HAL_RCC_GPIOD_CLK_ENABLE();//enable CLK D, LD4
-		GPIO_InitStructure.Pin = GPIO_PIN_4;
-		GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
-		GPIO_InitStructure.Pull = GPIO_PULLUP; 
-		GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
-		HAL_GPIO_Init(GPIOD, &GPIO_InitStructure);
-		//GPIOJ->MODER |= 1024U;
-		
-		__HAL_RCC_GPIOC_CLK_ENABLE();//enable CLK C, D0&D1
-		GPIO_InitStructure.Pin = GPIO_PIN_6;//Arduino D1 input
-		GPIO_InitStructure.Pin = GPIO_PIN_7;//Arduino D0 input
-		GPIO_InitStructure.Mode = GPIO_MODE_INPUT;
-		GPIO_InitStructure.Pull = GPIO_PULLUP; 
-		GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
-		HAL_GPIO_Init(GPIOD, &GPIO_InitStructure);
-		
-		__HAL_RCC_GPIOF_CLK_ENABLE();//enable CLK F, D3
-		GPIO_InitStructure.Pin = GPIO_PIN_6;//Arduino D3 input
-		GPIO_InitStructure.Mode = GPIO_MODE_INPUT;
-		GPIO_InitStructure.Pull = GPIO_PULLUP; 
-		GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
-		HAL_GPIO_Init(GPIOD, &GPIO_InitStructure);
-		
-	
-		HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_13, GPIO_PIN_RESET);//LIGHT UP LD1
-		HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_RESET);//LIGHT UP LD2
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);//LIGHT UP LD2
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET);//LIGHT UP LD2
-		HAL_Delay(1000);
+		//D0(C7)->LD1(J13)
+		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_7))
+			HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_13, GPIO_PIN_SET);
+		else
+			HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_13, GPIO_PIN_RESET);
+		//D1(C6)->LD2(J5)
+		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6))
+			HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_SET);
+		else
+			HAL_GPIO_WritePin(GPIOJ, GPIO_PIN_5, GPIO_PIN_RESET);
+		//D2(J1)->LD3(A12)
+		if(HAL_GPIO_ReadPin(GPIOJ, GPIO_PIN_1))
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+		else
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+		//D3(F6)->LD4(D4),reversed
+		if(HAL_GPIO_ReadPin(GPIOF, GPIO_PIN_6))
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET);
+		else
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET);
+
 	}
 }
