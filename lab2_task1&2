@@ -18,6 +18,7 @@
 void blinkScreen();
 void Init_GPIO();
 void Init_Timer();
+void Init_HALTimer();
 
 //
 //
@@ -35,11 +36,13 @@ unsigned int iterations = 0;
 int i=0; // for EXTI0, just in case that the above variables will be used in somewhere
 int j=0;//for TIM6, just in case
 int k=0;
+TIM_HandleTypeDef htim7;
 
 int main() {
 	Sys_Init();
-	Init_Timer();
-	Init_GPIO();
+	//Init_Timer();//through registers
+	//Init_GPIO();//through registers
+	Init_HALTimer();
 
 	while (1) {
 		// Main loop code goes here
@@ -148,6 +151,19 @@ void Init_GPIO() {
 	//EXTI ->FTSR |= EXTI_FTSR_TR0_1;//This one might be used for EXTI8
 }
 
+void Init_HALTimer() {
+	htim7.Instance = TIM7;
+	htim7.Init.Prescaler = 59999;
+	htim7.Init.Period = 179;
+
+	__HAL_RCC_TIM7_CLK_ENABLE();
+
+	HAL_NVIC_SetPriority(TIM7_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(TIM7_IRQn);
+
+	HAL_TIM_Base_Init(&htim7);
+	HAL_TIM_Base_Start_IT(&htim7);
+}
 //
 //
 // -- ISRs (IRQs) -------------
@@ -188,7 +204,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	// ISR code here.
 }
 
+void TIM7_IRQHandler(void) {
+	HAL_TIM_IRQHandler(&htim7);
+}
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if(htim->Instance == TIM7) {
+		j++;
+		if (j == 10 ) {
+			j = 0;
+			k++;
+		}
+	}
+
+}
 // For the HAL timer interrupts, all of the associated Callbacks need to exist,
 // otherwise during assembly, they will generate compiler errors as missing symbols
 // Below are the ones that are not used.
