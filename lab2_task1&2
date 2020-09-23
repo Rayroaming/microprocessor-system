@@ -125,7 +125,10 @@ void Init_GPIO() {
 	// GPIO Interrupt
 	// By default pin PA0 will trigger the interrupt, change EXTICR1 to route proper pin
 	//SYSCFG->EXTICR[0] // EXTICR1-4 are confusingly an array [0-3].
-	SYSCFG ->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA; //PA0
+	SYSCFG ->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA; //PA0, remapping the path so that EXTI0
+												// is connected to the blue push button(external
+													// interrupt configuration register)
+													//EXTI: external interrupt
 
 	// Set Pin 0 as input (button) with pull-down.
 	//GPIOA->PUPDR
@@ -133,7 +136,7 @@ void Init_GPIO() {
 
 	// Set interrupt enable for EXTI0.
 	// NVIC->ISER
-	NVIC ->ISER[0] = (uint32_t) 1 << (6);
+	NVIC ->ISER[0] = (uint32_t) 1 << (6);//enable the EXTI0
 	// Unmask interrupt.
 	// EXTI->IMR
 	EXTI ->IMR |= EXTI_IMR_MR0;//EXTI0 line0; not masked
@@ -153,7 +156,7 @@ void TIM6_DAC_IRQHandler() {
 	// Clear Interrupt Bit
 	//TIM6->SR &= ;
 	TIM6 ->SR &= 0xFFFEU;
-	DAC ->CR |= DAC_CR_EN1 | DAC_CR_TSEL1;
+	DAC ->CR |= ~(DAC_CR_EN1 | DAC_CR_EN2);
 	// Other code here:
 	j++;
 	if(j==10)
