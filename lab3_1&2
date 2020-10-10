@@ -1,0 +1,71 @@
+//------------------------------------
+// Lab 3 - Part 1: UART - Lab03_uart.c
+//------------------------------------
+//
+
+#include "init.h"
+
+UART_HandleTypeDef huart6;
+uint8_t c1;
+uint8_t c2;
+uint8_t c3[13]="ESC Pressed";
+
+// Main Execution Loop
+int main(void) {
+	//Initialize the system
+	Sys_Init();
+	//printf("Your code here!\r\n");
+	initUart(&huart6,38400, USART6);
+	//task 1
+	while(1)  {
+		if (!HAL_UART_Receive(&USB_UART, &c1, 1, 10)) {
+			if (c1 != 27) {
+				HAL_UART_Transmit(&USB_UART, &c1, 1, 10);
+				HAL_UART_Transmit(&huart6, &c1, 1, 10);
+			}else {
+				HAL_UART_Transmit(&USB_UART, c3, 13, 10);
+				HAL_UART_Transmit(&huart6, &c1, 1, 10);
+				break;
+			}
+		}
+		if(!HAL_UART_Receive(&huart6, &c2, 1, 10)) {
+			if (c2 != 27) {
+				HAL_UART_Transmit(&USB_UART, &c2, 1, 10);
+				HAL_UART_Transmit(&huart6, &c2, 1, 10);
+			}else {
+				HAL_UART_Transmit(&USB_UART, c3, 13, 10);
+				HAL_UART_Transmit(&huart6, &c2, 1, 10);
+				break;
+			}
+		}
+	}
+//	task 2
+//	HAL_NVIC_SetPriority(USART6_IRQn, 0, 0);
+//	HAL_NVIC_EnableIRQ(USART6_IRQn);
+//	HAL_NVIC_SetPriority(USART1_IRQn, 1,0);
+//	HAL_NVIC_EnableIRQ(USART1_IRQn);
+//	HAL_UART_Receive_IT(&USB_UART, &c1, 1);
+//	HAL_UART_Receive_IT(&huart6, &c2, 1);
+	while(1);
+	// Lost? Check out uart.c!
+}
+
+void USART1_IRQHandler() {
+	HAL_UART_IRQHandler(&USB_UART);
+}
+
+void USART6_IRQHandler() {
+	HAL_UART_IRQHandler(&huart6);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huarthandle) {
+	if (huarthandle->Instance == USART1) {
+		HAL_UART_Transmit_IT(&huart6, &c1, 1);
+		HAL_UART_Transmit_IT(&USB_UART, &c1, 1);
+		HAL_UART_Receive_IT(&USB_UART, &c1, 1);
+	} else if (huarthandle->Instance == USART6) {
+		HAL_UART_Transmit_IT(&USB_UART, &c2, 1);
+		HAL_UART_Transmit_IT(&huart6, &c2, 1);
+		HAL_UART_Receive_IT(&huart6, &c2, 1);
+	}
+}
