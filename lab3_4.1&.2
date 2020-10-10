@@ -1,0 +1,242 @@
+#include "init.h"
+
+char c1;
+char c2;
+char result;
+char dummybite = 0x00;
+char V_MAJ = 0;
+char V_MIN = 1;
+char CTL_REG = 2;
+char STS_REG =3;
+char TMP_AVG =4;
+char TMP_LO = 5;
+char TMP_HI =6;
+char CH_BUF =7;
+char TXT_ATTR =8;
+char DEVID =9;
+char db = 0x10;
+
+SPI_HandleTypeDef spi2h;
+UART_HandleTypeDef huart6;
+
+void configureSPI()
+{
+	spi2h.Instance = SPI2; // Please use SPI2!
+	spi2h.Init.Mode = SPI_MODE_MASTER; // Set master mode
+	spi2h.Init.TIMode = SPI_TIMODE_DISABLE; // Use Motorola mode, not TI mode
+	spi2h.Init.DataSize = SPI_DATASIZE_8BIT;
+	spi2h.Init.CLKPolarity = SPI_POLARITY_LOW;
+	spi2h.Init.CLKPhase = SPI_PHASE_2EDGE;
+	spi2h.Init.Direction = SPI_DIRECTION_2LINES;//?
+	spi2h.Init.NSS = SPI_NSS_SOFT;//SS signal driven by the firmware
+	spi2h.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+	spi2h.Init.FirstBit=SPI_FIRSTBIT_MSB;
+	spi2h.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+	spi2h.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
+
+	HAL_SPI_Init(&spi2h);
+
+
+/*
+ * ... You get the idea.
+ */
+
+	//HAL_SPI_Init(&[SPIHandler here]);
+	//
+	// Note: HAL_StatusTypeDef HAL_SPI_Init(SPI_HandleTypeDef *hspi)
+	//
+	// HAL_SPI_Init() will call HAL_SPI_MspInit() after reading the properties of
+	// the passed SPI_HandleTypeDef. After finishing the MspInit call, it will set
+	// the SPI property bits. This is how all HAL_[peripheral]_Init() functions work.
+}
+
+void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
+{
+	// SPI GPIO initialization structure here
+	GPIO_InitTypeDef GPIO_InitStruct;
+	if (hspi->Instance == SPI2)
+	{
+		__GPIOA_CLK_ENABLE();
+		//SPI2_SCK PA12 D13
+		GPIO_InitStruct.Pin  = GPIO_PIN_12;
+		GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+		GPIO_InitStruct.Pull = GPIO_PULLUP;
+		GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+		GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+
+		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+		__GPIOB_CLK_ENABLE();
+		//SPI2_MOSI PB15 D11
+		GPIO_InitStruct.Pin  = GPIO_PIN_15;
+		HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+		//MISO PB14 D12
+		GPIO_InitStruct.Pin  = GPIO_PIN_14;
+		GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+		HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+		//SPI2_NSS PA11 D10
+		GPIO_InitStruct.Pin  = GPIO_PIN_11;
+		GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+
+
+		__HAL_RCC_SPI2_CLK_ENABLE();
+		// Enable SPI GPIO port clocks, set HAL GPIO init structure's values for each
+		// SPI-related port pin (SPI port pin configuration), enable SPI IRQs (if applicable), etc.
+	}
+}
+
+int main(void) {
+	Sys_Init();
+
+	configureSPI();
+	do {
+		for (int i = 0; i < 3000; i++) asm("nop");
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+		for (int i = 0; i < 3000; i++) asm("nop");
+		HAL_SPI_Transmit(&spi2h, (uint8_t *)&STS_REG, 1, 10);
+		for (int i = 0; i < 3000; i++) asm("nop");
+		HAL_SPI_Receive(&spi2h, (uint8_t *)&c1, 1, 10);
+		for (int i = 0; i < 3000; i++) asm("nop");
+		if(((c1&0x01) == 0x01) && ((c1&0x60)!=0x00)){ //STaTs ready and ch_buf not empty
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_SPI_Transmit(&spi2h, (uint8_t *)&CH_BUF, 1, 10);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_SPI_Receive(&spi2h, (uint8_t *)&c2, 1, 10);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_UART_Transmit(&USB_UART,(uint8_t *)&c2, 1, 10);
+			//printf("test:%c\r\n", c2);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			//clear cu_buf bits
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_SPI_Transmit(&spi2h, (uint8_t *)&CTL_REG, 1, 10);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_SPI_Transmit(&spi2h, (uint8_t *)&db, 1, 10);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+		}
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+		for (int i = 0; i < 3000; i++) asm("nop");
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+		for (int i = 0; i < 3000; i++) asm("nop");
+		HAL_SPI_Transmit(&spi2h, (uint8_t *)&CH_BUF, 1, 10);
+		for (int i = 0; i < 3000; i++) asm("nop");
+		if(!HAL_UART_Receive(&USB_UART,(uint8_t *)&c1, 1, 10)) {
+			HAL_SPI_Transmit(&spi2h, (uint8_t *)&c1, 1, 10);
+			//HAL_SPI_Receive(&spi2h, (uint8_t *)&c2, 1, 10);
+		}
+		for (int i = 0; i < 3000; i++) asm("nop");
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+		for (int i = 0; i < 3000; i++) asm("nop");
+	}while(c1 != 27);
+	//printf("test\r\n");
+//	uint8_t v1;
+//	uint8_t v2;
+	printf("\r\nMenu:\r\n1.firmware version\r\n");
+	while (1) {
+		c1 = getchar();
+		switch(c1) {
+		case '1':
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_SPI_Transmit(&spi2h, (uint8_t *)&V_MAJ, 1, 10);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_SPI_Receive(&spi2h,(uint8_t *)&c1, 1, 10);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_SPI_Transmit(&spi2h, (uint8_t *)&V_MIN, 1, 10);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_SPI_Receive(&spi2h,(uint8_t *)&c2, 1, 10);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+			for (int i = 0; i < 3000; i++) asm("nop");
+			printf("%d.%d\r\n",c1, c2);
+			break;
+		}
+	}
+}
+//the following codes are unfinished
+//		case 2: //Trigger a temperature measurement & retrieve the result when it's ready
+//			uint12_t tv;
+//			do{
+//				asm("nop");
+//				asm("nop");
+//				asm("nop");
+//				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+//				HAL_SPI_Transmit(&spi2h, (uint8_t *)&STS_REG, 1, 10);
+//				HAL_SPI_Receive(&spi2h,(uint8_t *)&c1, 1, 10);
+//				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+//			}while(c1[3] != HAL_OK);
+//			asm("nop");
+//			asm("nop");
+//			asm("nop");
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+//			HAL_SPI_Transmit(&spi2h, (uint8_t *)&TMP_LO, 1, 10);
+//			HAL_SPI_Receive(&spi2h,(uint8_t *)&c2, 1, 10);
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+//			asm("nop");
+//			asm("nop");
+//			asm("nop");
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+//			HAL_SPI_Transmit(&spi2h, (uint8_t *)&TMP_HI, 1, 10);
+//			HAL_SPI_Receive(&spi2h,(uint8_t *)&c1, 1, 10);
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+//			tv = (c1<<6) | (c2 & 0xff);
+//			printf("\e[1,15H");
+//			fflush(stdout);
+//			printf("Temperature: %4.1f\r\n", tv*0.322-279);//?
+//			break;
+//
+//		case 3://change device ID
+//			c1 = 1;
+//			asm("nop");
+//			asm("nop");
+//			asm("nop");
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+//			HAL_SPI_Transmit(&spi2h,(uint8_t *)&ULKDID[7], 1, 10);
+//			HAL_SPI_Transmit(&spi2h, &c1, 1, 10);
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+//			c2 = 0x22;
+//			asm("nop");
+//			asm("nop");
+//			asm("nop");
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+//			HAL_SPI_Transmit(&spi2h,(uint8_t *)&DEVID, 1, 10);
+//			HAL_SPI_Transmit(&spi2h, &c2, 1, 10);
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+//			break;
+//
+//		case 4: //Clear or reset terminal
+//			c1 = 1;
+//			asm("nop");
+//			asm("nop");
+//			asm("nop");
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+//			HAL_SPI_Transmit(&spi2h,(uint8_t *) &CTL_REG[7], 1, 10);
+//			HAL_SPI_Transmit(&spi2h, &c1, 1, 10);
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+//			c2 = 1;
+//			asm("nop");
+//			asm("nop");
+//			asm("nop");
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+//			HAL_SPI_Transmit(&spi2h,(uint8_t *) &CTL_REG[3], 1, 10);
+//			HAL_SPI_Transmit(&spi2h, &c2, 1, 10);
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+
+
