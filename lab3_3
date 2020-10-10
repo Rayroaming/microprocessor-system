@@ -1,0 +1,164 @@
+//----------------------------------
+// Lab 3 - Part 3: SPI - Lab03_spi.c
+//----------------------------------
+//
+
+#include "init.h"
+
+// If needed:
+//#include <stdio.h>
+//#include <stdlib.h>
+
+char c1;
+char result;
+uint8_t i=0;
+SPI_HandleTypeDef spi2h;
+/*
+ * For convenience, configure the SPI handler here
+ */
+// See 769 Description of HAL drivers.pdf, Ch. 58.1 or stm32f7xx_hal_spi.c
+void configureSPI()
+{
+	spi2h.Instance = SPI2; // Please use SPI2!
+	spi2h.Init.Mode = SPI_MODE_MASTER; // Set master mode
+	spi2h.Init.TIMode = SPI_TIMODE_DISABLE; // Use Motorola mode, not TI mode
+	spi2h.Init.DataSize = SPI_DATASIZE_8BIT;
+	spi2h.Init.CLKPolarity = SPI_POLARITY_HIGH;
+	spi2h.Init.CLKPhase = SPI_PHASE_1EDGE;
+	spi2h.Init.Direction = SPI_DIRECTION_2LINES;//?
+	spi2h.Init.NSS = SPI_NSS_SOFT;//SS signal driven by the firmware
+	spi2h.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+	spi2h.Init.FirstBit=SPI_FIRSTBIT_MSB;
+	spi2h.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+	spi2h.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
+
+	HAL_SPI_Init(&spi2h);
+
+
+/*
+ * ... You get the idea.
+ */
+
+	//HAL_SPI_Init(&[SPIHandler here]);
+	//
+	// Note: HAL_StatusTypeDef HAL_SPI_Init(SPI_HandleTypeDef *hspi)
+	//
+	// HAL_SPI_Init() will call HAL_SPI_MspInit() after reading the properties of
+	// the passed SPI_HandleTypeDef. After finishing the MspInit call, it will set
+	// the SPI property bits. This is how all HAL_[peripheral]_Init() functions work.
+}
+
+/*
+ * This is called upon SPI initialization. It handles the configuration
+ * of the GPIO pins for SPI.
+ */
+ // Do NOT change the name of an MspInit function; it needs to override a
+ // __weak function of the same name. It does not need a prototype in the header.
+void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
+{
+	// SPI GPIO initialization structure here
+	GPIO_InitTypeDef GPIO_InitStruct;
+	if (hspi->Instance == SPI2)
+	{
+		__GPIOA_CLK_ENABLE();
+		//SPI2_SCK PA12 D13
+		GPIO_InitStruct.Pin  = GPIO_PIN_12;
+		GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+		GPIO_InitStruct.Pull = GPIO_PULLUP;
+		GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
+		GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+
+		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+		//SPI2_NSS PA11 D10
+		GPIO_InitStruct.Pin  = GPIO_PIN_11;
+		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+		__GPIOB_CLK_ENABLE();
+		//SPI2_MOSI PB15 D11
+		GPIO_InitStruct.Pin  = GPIO_PIN_15;
+		HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+		//SPI2_MISO PB14 D12
+		GPIO_InitStruct.Pin  = GPIO_PIN_14;
+		GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+		HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+		__HAL_RCC_SPI2_CLK_ENABLE();
+		// Enable SPI GPIO port clocks, set HAL GPIO init structure's values for each
+		// SPI-related port pin (SPI port pin configuration), enable SPI IRQs (if applicable), etc.
+	}
+}
+
+int main(void)
+{
+	Sys_Init();
+
+	// For convenience
+	configureSPI();
+	//enable interrupt for spi2
+	HAL_NVIC_SetPriority(SPI2_IRQn, 1, 0);
+	HAL_NVIC_EnableIRQ(SPI2_IRQn);
+
+	HAL_NVIC_SetPriority(USART1_IRQn, 0,0);
+	HAL_NVIC_EnableIRQ(USART1_IRQn);
+	//printf("Your code here!\r\n");
+	HAL_UART_Receive_IT(&USB_UART,(uint8_t *)&c1, 1);
+	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+	//HAL_SPI_TransmitReceive_IT(&spi2h, (uint8_t *)&c1, (uint8_t *)&result, 1);
+	//HAL_SPI_Transmit_IT(&spi2h, &c1, 1);
+	//HAL_SPI_Receive_IT(&spi2h, &c1, 1);
+	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+	while(1);
+// See 769 Description of HAL drivers.pdf, Ch. 58.2.3 or stm32f7xx_hal_spi.c
+//
+//	HAL_StatusTypeDef HAL_SPI_TransmitReceive(SPI_HandleTypeDef *hspi, uint8_t *pTxData, uint8_t *pRxData, uint16_t Size, uint32_t Timeout)
+//
+}
+
+void USART1_IRQHandler() {
+	HAL_UART_IRQHandler(&USB_UART);
+}
+
+void SPI2_IRQHandler() {
+	HAL_SPI_IRQHandler(&spi2h);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huarthandle) {
+	if (huarthandle->Instance == USART1) {
+		//printf("uart\r\n");
+		printf("\e[H\e[2K");
+		fflush(stdout);
+		HAL_UART_Transmit(&USB_UART,(uint8_t *)&c1, 1, 10);
+		HAL_SPI_TransmitReceive_IT(&spi2h,(uint8_t *)&c1,(uint8_t *)&result, 1);
+//		printf("\e[12;1H\e[2K\r\n");
+//		HAL_UART_Transmit_IT(&USB_UART,(uint8_t *)&result, 1);
+//		HAL_SPI_Transmit(&spi2h, &c1, 1, 10);
+//		HAL_SPI_Receive(&spi2h, &c1, 1, 10);
+//		//printf("test\r\n");
+//		printf("\e[12;1H\e[2K\r\n");
+//		HAL_UART_Transmit_IT(&USB_UART, &c1, 1);
+		//printf("\e[2k");
+		HAL_UART_Receive_IT(&USB_UART,(uint8_t *)&c1, 1);
+	}
+}
+
+
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef* spihandle) {
+	if (spihandle->Instance == SPI2) {
+		//for (int i = 0; i < 1000 ; i++) {
+			//asm("nop");
+		//}
+		printf("\e[12;2H\e[2K\r\n");
+		//printf("\e[12;1H%d\r\n",i);
+		//i++;
+		//printf("spi2%c\r\n",c1);
+		//HAL_Delay(10);
+		HAL_UART_Transmit(&USB_UART,(uint8_t *)&result, 1, 10);
+		//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+		//HAL_UART_Receive_IT(&USB_UART,(uint8_t *)&c1, 1);
+		//HAL_SPI_TransmitReceive_IT(&spi2h,(uint8_t *)&c1,(uint8_t *)&result, 1, 10);
+		//HAL_SPI_Receive_IT(&spi2h,(uint8_t *)&c1, 1);
+		//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+	}
+}
